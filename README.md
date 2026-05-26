@@ -1,4 +1,5 @@
-# API REST de Tarefas — Node.js + PostgreSQL
+# Task Manager API
+API REST de gerenciamento de tarefas com autenticação JWT e PostgreSQL.
 
 API de gerenciamento de tarefas com autenticação JWT. Cada usuário só acessa as próprias tarefas.
 
