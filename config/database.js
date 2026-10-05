@@ -1,9 +1,7 @@
 const { Pool } = require('pg');
 require('dotenv').config();
 
-// Pool de conexões com o PostgreSQL
-// O Pool reutiliza conexões em vez de abrir uma nova a cada requisição.
-// A conexão só é aberta na primeira query (o teste de conexão fica em server.js).
+// a conexão só abre na primeira query
 const pool = new Pool({
   host: process.env.DB_HOST,
   port: process.env.DB_PORT,

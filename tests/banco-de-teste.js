@@ -1,5 +1,4 @@
-// Sobe um PostgreSQL temporário para os testes, sem precisar instalar nada.
-// Se TEST_DB_HOST estiver definido (ex: no GitHub Actions), usa aquele banco.
+// sobe um Postgres temporário pros testes (ou usa o do CI se TEST_DB_HOST existir)
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
@@ -55,11 +54,11 @@ async function iniciarBanco() {
     pararBanco = () => pg.stop();
   }
 
-  // Só agora o pool é criado, já com as variáveis de ambiente certas
+  // só importa agora, depois de setar as variáveis
   const pool = require('../config/database');
   const schema = fs.readFileSync(path.join(__dirname, '..', 'config', 'schema.sql'), 'utf8');
   await pool.query(schema);
-  // Executa de novo para garantir que o script é idempotente
+  // roda duas vezes pra garantir que o schema aguenta rodar de novo
   await pool.query(schema);
 
   return {

@@ -1,15 +1,12 @@
 const pool = require('../../config/database');
 
-// Controller de Tarefas
-// Todas as rotas aqui passam pelo middleware de autenticação
-// Por isso, req.usuario sempre existe e contém { id, email }
+// todas as rotas daqui passam pelo autenticar, então req.usuario sempre existe
 
 const PRIORIDADES = ['baixa', 'media', 'alta'];
 const TITULO_MAX = 200;
 
-// Ordenações permitidas. O valor do usuário nunca entra direto no SQL:
-// ele só escolhe uma das chaves deste objeto (evita SQL Injection no ORDER BY).
-// Prioridade usa CASE porque, em ordem alfabética, 'media' viria antes de 'alta'.
+// o usuário só escolhe uma chave daqui, o texto dele nunca vai pro ORDER BY.
+// prioridade usa CASE porque em ordem alfabética 'media' viria antes de 'alta'
 const ORDENS = {
   recente: 'criado_em DESC',
   antiga: 'criado_em ASC',
@@ -17,8 +14,7 @@ const ORDENS = {
   titulo: 'titulo ASC',
 };
 
-// Valida os campos enviados no corpo. `parcial` = true no PUT (campos opcionais).
-// Retorna a mensagem de erro ou null se estiver tudo certo.
+// devolve a mensagem de erro ou null. No PUT (parcial) os campos são opcionais
 function validarTarefa(body, parcial) {
   const { titulo, descricao, concluida, prioridade } = body;
 
@@ -56,11 +52,9 @@ async function listar(req, res) {
     return res.status(400).json({ erro: `Ordem deve ser: ${Object.keys(ORDENS).join(', ')}` });
   }
 
-  // Paginação: limite entre 1 e 100, página a partir de 1
   const pagina = Math.max(parseInt(req.query.pagina, 10) || 1, 1);
   const limite = Math.min(Math.max(parseInt(req.query.limite, 10) || 20, 1), 100);
 
-  // Monta a query dinamicamente com filtros opcionais
   let filtros = 'WHERE usuario_id = $1';
   const params = [req.usuario.id];
 
@@ -75,14 +69,12 @@ async function listar(req, res) {
   }
 
   if (busca) {
-    // ILIKE = LIKE sem diferenciar maiúsculas/minúsculas (PostgreSQL)
     params.push(`%${busca}%`);
     filtros += ` AND (titulo ILIKE $${params.length} OR descricao ILIKE $${params.length})`;
   }
 
   try {
-    // COUNT(*) OVER () devolve o total de linhas do filtro junto com cada linha,
-    // assim a paginação sai em uma única consulta
+    // COUNT(*) OVER () traz o total junto, aí não precisa de outra query pra paginação
     const resultado = await pool.query(
       `SELECT *, COUNT(*) OVER () AS total_filtrado
        FROM tarefas ${filtros}
@@ -107,7 +99,7 @@ async function listar(req, res) {
   }
 }
 
-// GET /tarefas/resumo — contagem por status e prioridade
+// GET /tarefas/resumo
 async function resumo(req, res) {
   try {
     const resultado = await pool.query(
@@ -120,7 +112,7 @@ async function resumo(req, res) {
       [req.usuario.id]
     );
 
-    // COUNT retorna bigint, que o driver pg entrega como string
+    // o pg devolve COUNT como string
     const linha = resultado.rows[0];
     const dados = Object.fromEntries(Object.entries(linha).map(([k, v]) => [k, Number(v)]));
     return res.json(dados);
@@ -136,7 +128,6 @@ async function buscarPorId(req, res) {
 
   try {
     const resultado = await pool.query(
-      // Filtra por id E por usuario_id para garantir que o usuário só acessa as próprias tarefas
       'SELECT * FROM tarefas WHERE id = $1 AND usuario_id = $2',
       [id, req.usuario.id]
     );
@@ -176,7 +167,7 @@ async function criar(req, res) {
   }
 }
 
-// PUT /tarefas/:id — atualiza só os campos enviados
+// PUT /tarefas/:id (só os campos enviados)
 async function atualizar(req, res) {
   const { id } = req.params;
 
@@ -188,9 +179,8 @@ async function atualizar(req, res) {
   const { titulo, descricao, concluida, prioridade } = req.body;
 
   try {
-    // COALESCE($n, coluna): se o parâmetro for NULL, mantém o valor atual.
-    // Assim a atualização é feita em uma só query, sem SELECT antes.
-    // A descrição é tratada à parte para permitir apagá-la enviando null.
+    // COALESCE mantém o valor atual quando o campo não veio.
+    // descricao é separada porque dá pra apagar mandando null
     const resultado = await pool.query(
       `UPDATE tarefas
        SET titulo     = COALESCE($1, titulo),
@@ -235,7 +225,6 @@ async function remover(req, res) {
       return res.status(404).json({ erro: 'Tarefa não encontrada' });
     }
 
-    // 204 No Content: sucesso sem corpo de resposta
     return res.status(204).send();
   } catch (err) {
     console.error('Erro ao remover tarefa:', err);

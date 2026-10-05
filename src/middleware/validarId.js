@@ -1,5 +1,4 @@
-// Middleware que valida o :id da URL
-// Sem ele, GET /tarefas/abc chegaria ao PostgreSQL e viraria um erro 500
+// sem isso, /tarefas/abc virava erro 500 lá no Postgres
 function validarId(req, res, next) {
   const id = Number(req.params.id);
 

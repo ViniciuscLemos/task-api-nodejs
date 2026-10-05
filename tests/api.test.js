@@ -124,14 +124,13 @@ describe('tarefas', () => {
     const buscada = await api.get(`/api/tarefas/${id}`);
     assert.equal(buscada.status, 200);
 
-    // Atualização parcial: só concluida muda, o resto permanece
+    // só o concluida muda
     const atualizada = await api.put(`/api/tarefas/${id}`, { concluida: true });
     assert.equal(atualizada.status, 200);
     assert.equal(atualizada.body.concluida, true);
     assert.equal(atualizada.body.titulo, 'Estudar Node');
     assert.equal(atualizada.body.prioridade, 'alta');
 
-    // Descrição pode ser apagada enviando null
     await api.put(`/api/tarefas/${id}`, { descricao: 'temporária' });
     const semDescricao = await api.put(`/api/tarefas/${id}`, { descricao: null });
     assert.equal(semDescricao.body.descricao, null);
@@ -176,7 +175,6 @@ describe('tarefas', () => {
     await api.post('/api/tarefas', { titulo: 'Baixa', prioridade: 'baixa' });
     await api.post('/api/tarefas', { titulo: 'Alta', prioridade: 'alta', descricao: 'estudar SQL' });
 
-    // Ordem por prioridade: alta → media → baixa (e não alfabética)
     const ordenadas = await api.get('/api/tarefas?ordem=prioridade');
     assert.deepEqual(ordenadas.body.tarefas.map((t) => t.titulo), ['Alta', 'Média', 'Baixa']);
 

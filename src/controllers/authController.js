@@ -2,10 +2,6 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const pool = require('../../config/database');
 
-// Controller de autenticação
-// Controllers contêm a lógica de negócio de cada rota
-
-// Validação simples de formato de e-mail (algo@algo.algo)
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 function gerarToken(usuario) {
@@ -20,13 +16,11 @@ function gerarToken(usuario) {
 async function registro(req, res) {
   const { nome, email, senha } = req.body;
 
-  // Validação básica dos campos
   if (typeof nome !== 'string' || typeof email !== 'string' || typeof senha !== 'string'
       || !nome.trim() || !email.trim() || !senha) {
     return res.status(400).json({ erro: 'Nome, email e senha são obrigatórios' });
   }
 
-  // E-mail é salvo em minúsculas: "Joao@Email.com" e "joao@email.com" são a mesma conta
   const emailNormalizado = email.trim().toLowerCase();
 
   if (!EMAIL_REGEX.test(emailNormalizado)) {
@@ -38,14 +32,10 @@ async function registro(req, res) {
   }
 
   try {
-    // Gera o hash da senha — NUNCA salve senhas em texto puro!
-    // O número 10 é o "salt rounds": quanto maior, mais seguro e mais lento
     const senhaHash = await bcrypt.hash(senha, 10);
 
-    // Insere o usuário e retorna os dados (exceto a senha).
-    // A coluna email é UNIQUE: se já existir, o banco recusa (erro 23505).
-    // Isso é mais seguro que fazer um SELECT antes, porque evita que duas
-    // requisições simultâneas criem a mesma conta.
+    // email é UNIQUE, então e-mail repetido cai no catch com código 23505.
+    // (fazer um SELECT antes deixaria duas requisições ao mesmo tempo criarem a mesma conta)
     const resultado = await pool.query(
       'INSERT INTO usuarios (nome, email, senha) VALUES ($1, $2, $3) RETURNING id, nome, email, criado_em',
       [nome.trim(), emailNormalizado, senhaHash]
@@ -79,11 +69,10 @@ async function login(req, res) {
     const usuario = resultado.rows[0];
 
     if (!usuario) {
-      // Mensagem genérica por segurança — não revelamos qual campo está errado
+      // mesma mensagem pros dois casos, pra não dizer se o e-mail existe
       return res.status(401).json({ erro: 'Email ou senha incorretos' });
     }
 
-    // bcrypt.compare compara a senha digitada com o hash salvo
     const senhaCorreta = await bcrypt.compare(senha, usuario.senha);
 
     if (!senhaCorreta) {
@@ -100,7 +89,7 @@ async function login(req, res) {
   }
 }
 
-// GET /auth/me — devolve o usuário do token (útil para o front-end)
+// GET /auth/me
 async function me(req, res) {
   try {
     const resultado = await pool.query(
@@ -109,7 +98,7 @@ async function me(req, res) {
     );
 
     if (resultado.rows.length === 0) {
-      // Token válido, mas a conta foi apagada
+      // token válido mas a conta foi apagada
       return res.status(404).json({ erro: 'Usuário não encontrado' });
     }
 
