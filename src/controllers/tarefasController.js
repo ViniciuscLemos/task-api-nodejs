@@ -4,36 +4,128 @@ const pool = require('../../config/database');
 // Todas as rotas aqui passam pelo middleware de autenticação
 // Por isso, req.usuario sempre existe e contém { id, email }
 
-// GET /tarefas
+const PRIORIDADES = ['baixa', 'media', 'alta'];
+const TITULO_MAX = 200;
+
+// Ordenações permitidas. O valor do usuário nunca entra direto no SQL:
+// ele só escolhe uma das chaves deste objeto (evita SQL Injection no ORDER BY).
+// Prioridade usa CASE porque, em ordem alfabética, 'media' viria antes de 'alta'.
+const ORDENS = {
+  recente: 'criado_em DESC',
+  antiga: 'criado_em ASC',
+  prioridade: "CASE prioridade WHEN 'alta' THEN 3 WHEN 'media' THEN 2 ELSE 1 END DESC, criado_em DESC",
+  titulo: 'titulo ASC',
+};
+
+// Valida os campos enviados no corpo. `parcial` = true no PUT (campos opcionais).
+// Retorna a mensagem de erro ou null se estiver tudo certo.
+function validarTarefa(body, parcial) {
+  const { titulo, descricao, concluida, prioridade } = body;
+
+  if (!parcial || titulo !== undefined) {
+    if (typeof titulo !== 'string' || !titulo.trim()) {
+      return 'O título da tarefa é obrigatório';
+    }
+    if (titulo.trim().length > TITULO_MAX) {
+      return `O título deve ter no máximo ${TITULO_MAX} caracteres`;
+    }
+  }
+  if (descricao !== undefined && descricao !== null && typeof descricao !== 'string') {
+    return 'A descrição deve ser um texto';
+  }
+  if (concluida !== undefined && typeof concluida !== 'boolean') {
+    return 'O campo concluida deve ser true ou false';
+  }
+  if (prioridade !== undefined && !PRIORIDADES.includes(prioridade)) {
+    return 'Prioridade deve ser: baixa, media ou alta';
+  }
+  return null;
+}
+
+// GET /tarefas?concluida=false&prioridade=alta&busca=estudar&ordem=prioridade&pagina=1&limite=20
 async function listar(req, res) {
-  const { concluida, prioridade, ordem } = req.query;
+  const { concluida, prioridade, ordem, busca } = req.query;
+
+  if (concluida !== undefined && !['true', 'false'].includes(concluida)) {
+    return res.status(400).json({ erro: 'Filtro concluida deve ser true ou false' });
+  }
+  if (prioridade !== undefined && !PRIORIDADES.includes(prioridade)) {
+    return res.status(400).json({ erro: 'Prioridade deve ser: baixa, media ou alta' });
+  }
+  if (ordem !== undefined && !ORDENS[ordem]) {
+    return res.status(400).json({ erro: `Ordem deve ser: ${Object.keys(ORDENS).join(', ')}` });
+  }
+
+  // Paginação: limite entre 1 e 100, página a partir de 1
+  const pagina = Math.max(parseInt(req.query.pagina, 10) || 1, 1);
+  const limite = Math.min(Math.max(parseInt(req.query.limite, 10) || 20, 1), 100);
 
   // Monta a query dinamicamente com filtros opcionais
-  let query = 'SELECT * FROM tarefas WHERE usuario_id = $1';
+  let filtros = 'WHERE usuario_id = $1';
   const params = [req.usuario.id];
-  let paramIndex = 2;
 
   if (concluida !== undefined) {
-    query += ` AND concluida = $${paramIndex}`;
     params.push(concluida === 'true');
-    paramIndex++;
+    filtros += ` AND concluida = $${params.length}`;
   }
 
   if (prioridade) {
-    query += ` AND prioridade = $${paramIndex}`;
     params.push(prioridade);
-    paramIndex++;
+    filtros += ` AND prioridade = $${params.length}`;
   }
 
-  // Ordenação: padrão por data de criação
-  const ordens = { recente: 'criado_em DESC', antiga: 'criado_em ASC', prioridade: 'prioridade DESC' };
-  query += ` ORDER BY ${ordens[ordem] || 'criado_em DESC'}`;
+  if (busca) {
+    // ILIKE = LIKE sem diferenciar maiúsculas/minúsculas (PostgreSQL)
+    params.push(`%${busca}%`);
+    filtros += ` AND (titulo ILIKE $${params.length} OR descricao ILIKE $${params.length})`;
+  }
 
   try {
-    const resultado = await pool.query(query, params);
-    return res.json({ total: resultado.rows.length, tarefas: resultado.rows });
+    // COUNT(*) OVER () devolve o total de linhas do filtro junto com cada linha,
+    // assim a paginação sai em uma única consulta
+    const resultado = await pool.query(
+      `SELECT *, COUNT(*) OVER () AS total_filtrado
+       FROM tarefas ${filtros}
+       ORDER BY ${ORDENS[ordem] || ORDENS.recente}
+       LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
+      [...params, limite, (pagina - 1) * limite]
+    );
+
+    const total = resultado.rows.length ? Number(resultado.rows[0].total_filtrado) : 0;
+    const tarefas = resultado.rows.map(({ total_filtrado, ...tarefa }) => tarefa);
+
+    return res.json({
+      total,
+      pagina,
+      limite,
+      total_paginas: Math.ceil(total / limite),
+      tarefas,
+    });
   } catch (err) {
     console.error('Erro ao listar tarefas:', err);
+    return res.status(500).json({ erro: 'Erro interno do servidor' });
+  }
+}
+
+// GET /tarefas/resumo — contagem por status e prioridade
+async function resumo(req, res) {
+  try {
+    const resultado = await pool.query(
+      `SELECT
+         COUNT(*)                                         AS total,
+         COUNT(*) FILTER (WHERE concluida)                AS concluidas,
+         COUNT(*) FILTER (WHERE NOT concluida)            AS pendentes,
+         COUNT(*) FILTER (WHERE NOT concluida AND prioridade = 'alta') AS pendentes_alta
+       FROM tarefas WHERE usuario_id = $1`,
+      [req.usuario.id]
+    );
+
+    // COUNT retorna bigint, que o driver pg entrega como string
+    const linha = resultado.rows[0];
+    const dados = Object.fromEntries(Object.entries(linha).map(([k, v]) => [k, Number(v)]));
+    return res.json(dados);
+  } catch (err) {
+    console.error('Erro ao gerar resumo:', err);
     return res.status(500).json({ erro: 'Erro interno do servidor' });
   }
 }
@@ -62,23 +154,19 @@ async function buscarPorId(req, res) {
 
 // POST /tarefas
 async function criar(req, res) {
+  const erro = validarTarefa(req.body, false);
+  if (erro) {
+    return res.status(400).json({ erro });
+  }
+
   const { titulo, descricao, prioridade } = req.body;
-
-  if (!titulo) {
-    return res.status(400).json({ erro: 'O título da tarefa é obrigatório' });
-  }
-
-  const prioridadesValidas = ['baixa', 'media', 'alta'];
-  if (prioridade && !prioridadesValidas.includes(prioridade)) {
-    return res.status(400).json({ erro: 'Prioridade deve ser: baixa, media ou alta' });
-  }
 
   try {
     const resultado = await pool.query(
       `INSERT INTO tarefas (titulo, descricao, prioridade, usuario_id)
        VALUES ($1, $2, $3, $4)
        RETURNING *`,
-      [titulo, descricao || null, prioridade || 'media', req.usuario.id]
+      [titulo.trim(), descricao || null, prioridade || 'media', req.usuario.id]
     );
 
     return res.status(201).json(resultado.rows[0]);
@@ -88,38 +176,43 @@ async function criar(req, res) {
   }
 }
 
-// PUT /tarefas/:id
+// PUT /tarefas/:id — atualiza só os campos enviados
 async function atualizar(req, res) {
   const { id } = req.params;
+
+  const erro = validarTarefa(req.body, true);
+  if (erro) {
+    return res.status(400).json({ erro });
+  }
+
   const { titulo, descricao, concluida, prioridade } = req.body;
 
   try {
-    // Verifica se a tarefa existe e pertence ao usuário
-    const tarefa = await pool.query(
-      'SELECT * FROM tarefas WHERE id = $1 AND usuario_id = $2',
-      [id, req.usuario.id]
-    );
-
-    if (tarefa.rows.length === 0) {
-      return res.status(404).json({ erro: 'Tarefa não encontrada' });
-    }
-
-    // Usa os valores atuais se não forem enviados novos (COALESCE)
-    const atual = tarefa.rows[0];
+    // COALESCE($n, coluna): se o parâmetro for NULL, mantém o valor atual.
+    // Assim a atualização é feita em uma só query, sem SELECT antes.
+    // A descrição é tratada à parte para permitir apagá-la enviando null.
     const resultado = await pool.query(
       `UPDATE tarefas
-       SET titulo = $1, descricao = $2, concluida = $3, prioridade = $4
-       WHERE id = $5 AND usuario_id = $6
+       SET titulo     = COALESCE($1, titulo),
+           descricao  = CASE WHEN $2 THEN $3 ELSE descricao END,
+           concluida  = COALESCE($4, concluida),
+           prioridade = COALESCE($5, prioridade)
+       WHERE id = $6 AND usuario_id = $7
        RETURNING *`,
       [
-        titulo ?? atual.titulo,
-        descricao ?? atual.descricao,
-        concluida ?? atual.concluida,
-        prioridade ?? atual.prioridade,
+        titulo !== undefined ? titulo.trim() : null,
+        descricao !== undefined,
+        descricao ?? null,
+        concluida ?? null,
+        prioridade ?? null,
         id,
         req.usuario.id,
       ]
     );
+
+    if (resultado.rows.length === 0) {
+      return res.status(404).json({ erro: 'Tarefa não encontrada' });
+    }
 
     return res.json(resultado.rows[0]);
   } catch (err) {
@@ -150,4 +243,4 @@ async function remover(req, res) {
   }
 }
 
-module.exports = { listar, buscarPorId, criar, atualizar, remover };
+module.exports = { listar, resumo, buscarPorId, criar, atualizar, remover };

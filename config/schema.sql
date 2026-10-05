@@ -1,6 +1,7 @@
 -- ============================================
 -- Schema do banco de dados - API de Tarefas
 -- Execute este arquivo antes de iniciar a API
+-- Pode ser executado mais de uma vez sem erro.
 -- ============================================
 
 -- Tabela de usuários
@@ -38,6 +39,8 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- Trigger que chama a função acima antes de qualquer UPDATE na tabela tarefas
+-- (DROP antes do CREATE para o script poder ser executado novamente)
+DROP TRIGGER IF EXISTS trigger_atualizar_tarefas ON tarefas;
 CREATE TRIGGER trigger_atualizar_tarefas
   BEFORE UPDATE ON tarefas
   FOR EACH ROW EXECUTE FUNCTION atualizar_timestamp();

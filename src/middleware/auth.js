@@ -13,9 +13,9 @@ function autenticar(req, res, next) {
   }
 
   // Separa "Bearer" do token em si
-  const [, token] = authHeader.split(' ');
+  const [tipo, token] = authHeader.split(' ');
 
-  if (!token) {
+  if (tipo !== 'Bearer' || !token) {
     return res.status(401).json({ erro: 'Formato de token inválido. Use: Bearer <token>' });
   }
 

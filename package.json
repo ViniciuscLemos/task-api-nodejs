@@ -1,20 +1,27 @@
 {
   "name": "api-tarefas",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "API REST de gerenciamento de tarefas com autenticação JWT",
   "main": "src/server.js",
   "scripts": {
     "start": "node src/server.js",
-    "dev": "nodemon src/server.js"
+    "dev": "nodemon src/server.js",
+    "test": "node --test --test-concurrency=1"
+  },
+  "engines": {
+    "node": ">=18"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
-    "dotenv": "^16.0.3",
-    "express": "^4.18.2",
-    "jsonwebtoken": "^9.0.0",
-    "pg": "^8.11.0"
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.2",
+    "jsonwebtoken": "^9.0.2",
+    "pg": "^8.13.1"
   },
   "devDependencies": {
-    "nodemon": "^3.0.1"
+    "embedded-postgres": "^17.5.0-beta.15",
+    "nodemon": "^3.1.9",
+    "supertest": "^7.0.0"
   }
 }
