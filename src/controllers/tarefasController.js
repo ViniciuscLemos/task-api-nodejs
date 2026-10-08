@@ -48,6 +48,10 @@ async function listar(req, res) {
   if (prioridade !== undefined && !PRIORIDADES.includes(prioridade)) {
     return res.status(400).json({ erro: 'Prioridade deve ser: baixa, media ou alta' });
   }
+  // ?busca=a&busca=b vira array no Express
+  if (busca !== undefined && typeof busca !== 'string') {
+    return res.status(400).json({ erro: 'Busca deve ser um texto só' });
+  }
   if (ordem !== undefined && !ORDENS[ordem]) {
     return res.status(400).json({ erro: `Ordem deve ser: ${Object.keys(ORDENS).join(', ')}` });
   }
@@ -69,7 +73,9 @@ async function listar(req, res) {
   }
 
   if (busca) {
-    params.push(`%${busca}%`);
+    // % e _ são curingas no ILIKE: sem escapar, buscar "100%" trazia qualquer tarefa com "100"
+    const literal = busca.replace(/[\\%_]/g, '\\$&');
+    params.push(`%${literal}%`);
     filtros += ` AND (titulo ILIKE $${params.length} OR descricao ILIKE $${params.length})`;
   }
 

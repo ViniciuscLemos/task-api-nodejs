@@ -193,6 +193,22 @@ describe('tarefas', () => {
     assert.equal((await api.get('/api/tarefas?concluida=talvez')).status, 400);
   });
 
+  it('busca trata % e _ como texto normal', async () => {
+    const api = comToken(await registrar());
+    await api.post('/api/tarefas', { titulo: 'Bateria em 100%' });
+    await api.post('/api/tarefas', { titulo: 'Nota 100 na prova' });
+    await api.post('/api/tarefas', { titulo: 'renomear arquivo_final' });
+    await api.post('/api/tarefas', { titulo: 'arquivo final' });
+
+    const porcento = await api.get(`/api/tarefas?busca=${encodeURIComponent('100%')}`);
+    assert.deepEqual(porcento.body.tarefas.map((t) => t.titulo), ['Bateria em 100%']);
+
+    const sublinhado = await api.get('/api/tarefas?busca=arquivo_');
+    assert.deepEqual(sublinhado.body.tarefas.map((t) => t.titulo), ['renomear arquivo_final']);
+
+    assert.equal((await api.get('/api/tarefas?busca=a&busca=b')).status, 400);
+  });
+
   it('resumo conta tarefas por status', async () => {
     const api = comToken(await registrar());
     const { body } = await api.post('/api/tarefas', { titulo: 'A', prioridade: 'alta' });
