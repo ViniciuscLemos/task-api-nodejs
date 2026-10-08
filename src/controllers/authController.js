@@ -4,6 +4,9 @@ const pool = require('../../config/database');
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+// usado no login quando o e-mail não existe (explicação lá embaixo)
+const HASH_FALSO = bcrypt.hashSync('senha-que-ninguem-usa', 10);
+
 function gerarToken(usuario) {
   return jwt.sign(
     { id: usuario.id, email: usuario.email },
@@ -68,14 +71,12 @@ async function login(req, res) {
 
     const usuario = resultado.rows[0];
 
-    if (!usuario) {
+    // Mesmo sem usuário compara com um hash falso. Senão a resposta pra e-mail
+    // inexistente volta bem mais rápido, e dá pra descobrir quem tem conta pelo tempo.
+    const senhaCorreta = await bcrypt.compare(senha, usuario ? usuario.senha : HASH_FALSO);
+
+    if (!usuario || !senhaCorreta) {
       // mesma mensagem pros dois casos, pra não dizer se o e-mail existe
-      return res.status(401).json({ erro: 'Email ou senha incorretos' });
-    }
-
-    const senhaCorreta = await bcrypt.compare(senha, usuario.senha);
-
-    if (!senhaCorreta) {
       return res.status(401).json({ erro: 'Email ou senha incorretos' });
     }
 
