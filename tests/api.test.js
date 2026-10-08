@@ -221,3 +221,20 @@ describe('tarefas', () => {
     assert.deepEqual(res.body, { total: 3, concluidas: 1, pendentes: 2, pendentes_alta: 1 });
   });
 });
+
+describe('limite de tentativas', () => {
+  it('bloqueia o IP depois de muitas tentativas de login', async () => {
+    // app separado com limite 3, pra não depender do limite alto usado nos outros testes
+    const express = require('express');
+    const limiteTentativas = require('../src/middleware/limiteTentativas');
+    const appLimitado = express();
+    appLimitado.post('/login', limiteTentativas(3), (req, res) => res.status(401).json({ erro: 'senha errada' }));
+
+    for (let i = 0; i < 3; i++) {
+      assert.equal((await request(appLimitado).post('/login')).status, 401);
+    }
+    const bloqueado = await request(appLimitado).post('/login');
+    assert.equal(bloqueado.status, 429);
+    assert.match(bloqueado.body.erro, /Muitas tentativas/);
+  });
+});

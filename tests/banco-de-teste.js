@@ -18,6 +18,7 @@ function portaLivre() {
 async function iniciarBanco() {
   process.env.JWT_SECRET = 'segredo-de-teste';
   process.env.JWT_EXPIRES_IN = '1h';
+  process.env.LIMITE_TENTATIVAS = '10000';
 
   let pararBanco = async () => {};
 

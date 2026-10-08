@@ -115,6 +115,7 @@ Essas respostas são de verdade, tirei rodando a API.
 - O `ORDER BY` nunca recebe texto do usuário: o parâmetro `ordem` só escolhe uma opção de uma lista fixa.
 - Na busca, `%` e `_` são tratados como texto. Sem isso, buscar "100%" trazia qualquer tarefa com "100", porque no `ILIKE` eles são curingas.
 - O login dá a mesma mensagem pra senha errada e pra e-mail que não existe, e demora o mesmo tempo nos dois casos. Senão dava pra descobrir quem tem conta medindo o tempo da resposta.
+- Cadastro e login aceitam no máximo 10 tentativas a cada 15 minutos por IP (`express-rate-limit`), pra ninguém ficar testando senha na força bruta.
 - E-mail repetido é barrado pela constraint `UNIQUE` do banco, e não por um `SELECT` antes do `INSERT`, que deixaria duas requisições ao mesmo tempo criarem a mesma conta.
 
 ## Estrutura

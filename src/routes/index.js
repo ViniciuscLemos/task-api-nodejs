@@ -5,9 +5,11 @@ const authController = require('../controllers/authController');
 const tarefasController = require('../controllers/tarefasController');
 const autenticar = require('../middleware/auth');
 const validarId = require('../middleware/validarId');
+const limiteTentativas = require('../middleware/limiteTentativas');
 
-router.post('/auth/registro', authController.registro);
-router.post('/auth/login', authController.login);
+const limite = limiteTentativas();
+router.post('/auth/registro', limite, authController.registro);
+router.post('/auth/login', limite, authController.login);
 
 router.get('/auth/me', autenticar, authController.me);
 
