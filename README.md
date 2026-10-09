@@ -16,7 +16,7 @@ docker compose up --build
 
 The API runs at http://localhost:3000.
 
-Without Docker, you need Node 18+ and a running PostgreSQL:
+Without Docker, you need Node 20+ and a running PostgreSQL:
 
 ```bash
 npm install
