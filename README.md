@@ -34,6 +34,14 @@ npm test
 
 The tests start a temporary Postgres on their own (the `embedded-postgres` package), so you don't need the database installed to run them.
 
+## Docs
+
+With the API running, open http://localhost:3000/docs. It's a Swagger UI with every route: create an account, click **Authorize**, paste the token and you can try everything from the browser. The OpenAPI file itself is at `/api/openapi.json`.
+
+![Swagger UI with the auth and task routes](docs/screenshot-docs.png)
+
+A test checks that every route in the router is in the docs, so they don't get out of date when a new route shows up.
+
 ## Routes
 
 Login:
@@ -127,6 +135,7 @@ src/
   routes/         routes
   controllers/    login and task logic
   middleware/     token, id and rate limit checks
+  docs/           OpenAPI description used by /docs
 config/
   database.js     Postgres connection
   schema.sql      creates the tables

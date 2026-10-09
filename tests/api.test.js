@@ -58,6 +58,30 @@ describe('health and general errors', () => {
   });
 });
 
+describe('docs', () => {
+  it('serves the OpenAPI spec and the Swagger UI', async () => {
+    const spec = await request(app).get('/api/openapi.json');
+    assert.equal(spec.status, 200);
+    assert.equal(spec.body.openapi, '3.0.3');
+
+    const ui = await request(app).get('/docs/');
+    assert.equal(ui.status, 200);
+    assert.match(ui.text, /swagger-ui/);
+  });
+
+  it('documents every route of the router', () => {
+    const spec = require('../src/docs/openapi');
+    const router = require('../src/routes/index');
+
+    for (const layer of router.stack) {
+      const path = layer.route.path.replace(/:(\w+)/g, '{$1}');
+      for (const method of Object.keys(layer.route.methods)) {
+        assert.ok(spec.paths[path]?.[method], `${method.toUpperCase()} ${path} is missing from the docs`);
+      }
+    }
+  });
+});
+
 describe('authentication', () => {
   it('registers, logs in and checks /auth/me', async () => {
     await register('Ana@Email.com');
