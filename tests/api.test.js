@@ -2,33 +2,33 @@ const { describe, it, before, after, beforeEach } = require('node:test');
 const assert = require('node:assert/strict');
 const request = require('supertest');
 
-const { iniciarBanco } = require('./banco-de-teste');
+const { startDatabase } = require('./test-db');
 
-let banco;
+let db;
 let app;
 
 before(async () => {
-  banco = await iniciarBanco();
+  db = await startDatabase();
   app = require('../src/app');
 }, { timeout: 120_000 });
 
 after(async () => {
-  await banco?.parar();
+  await db?.stop();
 });
 
 beforeEach(async () => {
-  await banco.limpar();
+  await db.clear();
 });
 
-async function registrar(email = 'ana@email.com', nome = 'Ana') {
+async function register(email = 'ana@email.com', name = 'Ana') {
   const res = await request(app)
-    .post('/api/auth/registro')
-    .send({ nome, email, senha: '123456' });
+    .post('/api/auth/register')
+    .send({ name, email, password: '123456' });
   assert.equal(res.status, 201);
   return res.body.token;
 }
 
-function comToken(token) {
+function withToken(token) {
   return {
     get: (url) => request(app).get(url).set('Authorization', `Bearer ${token}`),
     post: (url, body) => request(app).post(url).set('Authorization', `Bearer ${token}`).send(body),
@@ -37,19 +37,19 @@ function comToken(token) {
   };
 }
 
-describe('saúde e erros gerais', () => {
-  it('GET / responde ok', async () => {
+describe('health and general errors', () => {
+  it('GET / answers ok', async () => {
     const res = await request(app).get('/');
     assert.equal(res.status, 200);
     assert.equal(res.body.status, 'ok');
   });
 
-  it('rota inexistente devolve 404', async () => {
-    const res = await request(app).get('/api/nao-existe');
+  it('unknown route returns 404', async () => {
+    const res = await request(app).get('/api/does-not-exist');
     assert.equal(res.status, 404);
   });
 
-  it('JSON malformado devolve 400', async () => {
+  it('malformed JSON returns 400', async () => {
     const res = await request(app)
       .post('/api/auth/login')
       .set('Content-Type', 'application/json')
@@ -58,183 +58,183 @@ describe('saúde e erros gerais', () => {
   });
 });
 
-describe('autenticação', () => {
-  it('registra, faz login e consulta /auth/me', async () => {
-    await registrar('Ana@Email.com');
+describe('authentication', () => {
+  it('registers, logs in and checks /auth/me', async () => {
+    await register('Ana@Email.com');
 
     const login = await request(app)
       .post('/api/auth/login')
-      .send({ email: 'ana@email.com', senha: '123456' });
+      .send({ email: 'ana@email.com', password: '123456' });
     assert.equal(login.status, 200);
     assert.ok(login.body.token);
-    assert.equal(login.body.usuario.senha, undefined);
+    assert.equal(login.body.user.password, undefined);
 
-    const me = await comToken(login.body.token).get('/api/auth/me');
+    const me = await withToken(login.body.token).get('/api/auth/me');
     assert.equal(me.status, 200);
     assert.equal(me.body.email, 'ana@email.com');
   });
 
-  it('recusa e-mail duplicado (sem diferenciar maiúsculas)', async () => {
-    await registrar('ana@email.com');
+  it('rejects a duplicate email (case insensitive)', async () => {
+    await register('ana@email.com');
     const res = await request(app)
-      .post('/api/auth/registro')
-      .send({ nome: 'Outra', email: 'ANA@email.com', senha: '123456' });
+      .post('/api/auth/register')
+      .send({ name: 'Someone else', email: 'ANA@email.com', password: '123456' });
     assert.equal(res.status, 409);
   });
 
-  it('valida campos do registro', async () => {
-    const casos = [
-      [{ email: 'a@b.com', senha: '123456' }, 'Nome, email e senha são obrigatórios'],
-      [{ nome: 'A', email: 'invalido', senha: '123456' }, 'Email inválido'],
-      [{ nome: 'A', email: 'a@b.com', senha: '123' }, 'A senha deve ter pelo menos 6 caracteres'],
+  it('validates register fields', async () => {
+    const cases = [
+      [{ email: 'a@b.com', password: '123456' }, 'Name, email and password are required'],
+      [{ name: 'A', email: 'invalid', password: '123456' }, 'Invalid email'],
+      [{ name: 'A', email: 'a@b.com', password: '123' }, 'Password must have at least 6 characters'],
     ];
-    for (const [body, erro] of casos) {
-      const res = await request(app).post('/api/auth/registro').send(body);
+    for (const [body, error] of cases) {
+      const res = await request(app).post('/api/auth/register').send(body);
       assert.equal(res.status, 400);
-      assert.equal(res.body.erro, erro);
+      assert.equal(res.body.error, error);
     }
   });
 
-  it('login com senha errada devolve 401', async () => {
-    await registrar();
+  it('login with the wrong password returns 401', async () => {
+    await register();
     const res = await request(app)
       .post('/api/auth/login')
-      .send({ email: 'ana@email.com', senha: 'errada' });
+      .send({ email: 'ana@email.com', password: 'wrong' });
     assert.equal(res.status, 401);
   });
 
-  it('rotas protegidas exigem token válido', async () => {
-    assert.equal((await request(app).get('/api/tarefas')).status, 401);
-    assert.equal((await comToken('token-falso').get('/api/tarefas')).status, 401);
-    const semBearer = await request(app).get('/api/tarefas').set('Authorization', 'abc');
-    assert.equal(semBearer.status, 401);
+  it('protected routes need a valid token', async () => {
+    assert.equal((await request(app).get('/api/tasks')).status, 401);
+    assert.equal((await withToken('fake-token').get('/api/tasks')).status, 401);
+    const noBearer = await request(app).get('/api/tasks').set('Authorization', 'abc');
+    assert.equal(noBearer.status, 401);
   });
 });
 
-describe('tarefas', () => {
-  it('CRUD completo', async () => {
-    const api = comToken(await registrar());
+describe('tasks', () => {
+  it('full CRUD', async () => {
+    const api = withToken(await register());
 
-    const criada = await api.post('/api/tarefas', { titulo: '  Estudar Node  ', prioridade: 'alta' });
-    assert.equal(criada.status, 201);
-    assert.equal(criada.body.titulo, 'Estudar Node');
-    assert.equal(criada.body.concluida, false);
-    const id = criada.body.id;
+    const created = await api.post('/api/tasks', { title: '  Study Node  ', priority: 'high' });
+    assert.equal(created.status, 201);
+    assert.equal(created.body.title, 'Study Node');
+    assert.equal(created.body.completed, false);
+    const id = created.body.id;
 
-    const buscada = await api.get(`/api/tarefas/${id}`);
-    assert.equal(buscada.status, 200);
+    const fetched = await api.get(`/api/tasks/${id}`);
+    assert.equal(fetched.status, 200);
 
-    // só o concluida muda
-    const atualizada = await api.put(`/api/tarefas/${id}`, { concluida: true });
-    assert.equal(atualizada.status, 200);
-    assert.equal(atualizada.body.concluida, true);
-    assert.equal(atualizada.body.titulo, 'Estudar Node');
-    assert.equal(atualizada.body.prioridade, 'alta');
+    // only completed changes
+    const updated = await api.put(`/api/tasks/${id}`, { completed: true });
+    assert.equal(updated.status, 200);
+    assert.equal(updated.body.completed, true);
+    assert.equal(updated.body.title, 'Study Node');
+    assert.equal(updated.body.priority, 'high');
 
-    await api.put(`/api/tarefas/${id}`, { descricao: 'temporária' });
-    const semDescricao = await api.put(`/api/tarefas/${id}`, { descricao: null });
-    assert.equal(semDescricao.body.descricao, null);
+    await api.put(`/api/tasks/${id}`, { description: 'temporary' });
+    const noDescription = await api.put(`/api/tasks/${id}`, { description: null });
+    assert.equal(noDescription.body.description, null);
 
-    assert.equal((await api.delete(`/api/tarefas/${id}`)).status, 204);
-    assert.equal((await api.get(`/api/tarefas/${id}`)).status, 404);
+    assert.equal((await api.delete(`/api/tasks/${id}`)).status, 204);
+    assert.equal((await api.get(`/api/tasks/${id}`)).status, 404);
   });
 
-  it('valida dados da tarefa', async () => {
-    const api = comToken(await registrar());
-    assert.equal((await api.post('/api/tarefas', {})).status, 400);
-    assert.equal((await api.post('/api/tarefas', { titulo: '   ' })).status, 400);
-    assert.equal((await api.post('/api/tarefas', { titulo: 'x'.repeat(201) })).status, 400);
-    assert.equal((await api.post('/api/tarefas', { titulo: 'A', prioridade: 'urgente' })).status, 400);
+  it('validates task data', async () => {
+    const api = withToken(await register());
+    assert.equal((await api.post('/api/tasks', {})).status, 400);
+    assert.equal((await api.post('/api/tasks', { title: '   ' })).status, 400);
+    assert.equal((await api.post('/api/tasks', { title: 'x'.repeat(201) })).status, 400);
+    assert.equal((await api.post('/api/tasks', { title: 'A', priority: 'urgent' })).status, 400);
 
-    const { body } = await api.post('/api/tarefas', { titulo: 'A' });
-    assert.equal((await api.put(`/api/tarefas/${body.id}`, { prioridade: 'urgente' })).status, 400);
-    assert.equal((await api.put(`/api/tarefas/${body.id}`, { concluida: 'sim' })).status, 400);
+    const { body } = await api.post('/api/tasks', { title: 'A' });
+    assert.equal((await api.put(`/api/tasks/${body.id}`, { priority: 'urgent' })).status, 400);
+    assert.equal((await api.put(`/api/tasks/${body.id}`, { completed: 'yes' })).status, 400);
   });
 
-  it('ID inválido devolve 400 em vez de erro 500', async () => {
-    const api = comToken(await registrar());
-    assert.equal((await api.get('/api/tarefas/abc')).status, 400);
-    assert.equal((await api.delete('/api/tarefas/-1')).status, 400);
+  it('invalid ID returns 400 instead of a 500 error', async () => {
+    const api = withToken(await register());
+    assert.equal((await api.get('/api/tasks/abc')).status, 400);
+    assert.equal((await api.delete('/api/tasks/-1')).status, 400);
   });
 
-  it('um usuário não acessa tarefas de outro', async () => {
-    const ana = comToken(await registrar('ana@email.com'));
-    const bia = comToken(await registrar('bia@email.com', 'Bia'));
+  it("a user can't access someone else's tasks", async () => {
+    const ana = withToken(await register('ana@email.com'));
+    const bia = withToken(await register('bia@email.com', 'Bia'));
 
-    const { body } = await ana.post('/api/tarefas', { titulo: 'Da Ana' });
+    const { body } = await ana.post('/api/tasks', { title: "Ana's" });
 
-    assert.equal((await bia.get(`/api/tarefas/${body.id}`)).status, 404);
-    assert.equal((await bia.put(`/api/tarefas/${body.id}`, { titulo: 'roubada' })).status, 404);
-    assert.equal((await bia.delete(`/api/tarefas/${body.id}`)).status, 404);
-    assert.equal((await bia.get('/api/tarefas')).body.total, 0);
+    assert.equal((await bia.get(`/api/tasks/${body.id}`)).status, 404);
+    assert.equal((await bia.put(`/api/tasks/${body.id}`, { title: 'stolen' })).status, 404);
+    assert.equal((await bia.delete(`/api/tasks/${body.id}`)).status, 404);
+    assert.equal((await bia.get('/api/tasks')).body.total, 0);
   });
 
-  it('filtra, busca, ordena por prioridade e pagina', async () => {
-    const api = comToken(await registrar());
-    await api.post('/api/tarefas', { titulo: 'Média', prioridade: 'media' });
-    await api.post('/api/tarefas', { titulo: 'Baixa', prioridade: 'baixa' });
-    await api.post('/api/tarefas', { titulo: 'Alta', prioridade: 'alta', descricao: 'estudar SQL' });
+  it('filters, searches, sorts by priority and paginates', async () => {
+    const api = withToken(await register());
+    await api.post('/api/tasks', { title: 'Medium', priority: 'medium' });
+    await api.post('/api/tasks', { title: 'Low', priority: 'low' });
+    await api.post('/api/tasks', { title: 'High', priority: 'high', description: 'study SQL' });
 
-    const ordenadas = await api.get('/api/tarefas?ordem=prioridade');
-    assert.deepEqual(ordenadas.body.tarefas.map((t) => t.titulo), ['Alta', 'Média', 'Baixa']);
+    const sorted = await api.get('/api/tasks?sort=priority');
+    assert.deepEqual(sorted.body.tasks.map((t) => t.title), ['High', 'Medium', 'Low']);
 
-    const busca = await api.get('/api/tarefas?busca=sql');
-    assert.deepEqual(busca.body.tarefas.map((t) => t.titulo), ['Alta']);
+    const search = await api.get('/api/tasks?search=sql');
+    assert.deepEqual(search.body.tasks.map((t) => t.title), ['High']);
 
-    const filtradas = await api.get('/api/tarefas?prioridade=baixa');
-    assert.equal(filtradas.body.total, 1);
+    const filtered = await api.get('/api/tasks?priority=low');
+    assert.equal(filtered.body.total, 1);
 
-    const pagina2 = await api.get('/api/tarefas?ordem=titulo&limite=2&pagina=2');
-    assert.equal(pagina2.body.total, 3);
-    assert.equal(pagina2.body.total_paginas, 2);
-    assert.deepEqual(pagina2.body.tarefas.map((t) => t.titulo), ['Média']);
+    const page2 = await api.get('/api/tasks?sort=title&limit=2&page=2');
+    assert.equal(page2.body.total, 3);
+    assert.equal(page2.body.total_pages, 2);
+    assert.deepEqual(page2.body.tasks.map((t) => t.title), ['Medium']);
 
-    assert.equal((await api.get('/api/tarefas?ordem=;DROP TABLE')).status, 400);
-    assert.equal((await api.get('/api/tarefas?concluida=talvez')).status, 400);
+    assert.equal((await api.get('/api/tasks?sort=;DROP TABLE')).status, 400);
+    assert.equal((await api.get('/api/tasks?completed=maybe')).status, 400);
   });
 
-  it('busca trata % e _ como texto normal', async () => {
-    const api = comToken(await registrar());
-    await api.post('/api/tarefas', { titulo: 'Bateria em 100%' });
-    await api.post('/api/tarefas', { titulo: 'Nota 100 na prova' });
-    await api.post('/api/tarefas', { titulo: 'renomear arquivo_final' });
-    await api.post('/api/tarefas', { titulo: 'arquivo final' });
+  it('search treats % and _ as plain text', async () => {
+    const api = withToken(await register());
+    await api.post('/api/tasks', { title: 'Battery at 100%' });
+    await api.post('/api/tasks', { title: 'Got 100 on the exam' });
+    await api.post('/api/tasks', { title: 'rename file_final' });
+    await api.post('/api/tasks', { title: 'file final' });
 
-    const porcento = await api.get(`/api/tarefas?busca=${encodeURIComponent('100%')}`);
-    assert.deepEqual(porcento.body.tarefas.map((t) => t.titulo), ['Bateria em 100%']);
+    const percent = await api.get(`/api/tasks?search=${encodeURIComponent('100%')}`);
+    assert.deepEqual(percent.body.tasks.map((t) => t.title), ['Battery at 100%']);
 
-    const sublinhado = await api.get('/api/tarefas?busca=arquivo_');
-    assert.deepEqual(sublinhado.body.tarefas.map((t) => t.titulo), ['renomear arquivo_final']);
+    const underscore = await api.get('/api/tasks?search=file_');
+    assert.deepEqual(underscore.body.tasks.map((t) => t.title), ['rename file_final']);
 
-    assert.equal((await api.get('/api/tarefas?busca=a&busca=b')).status, 400);
+    assert.equal((await api.get('/api/tasks?search=a&search=b')).status, 400);
   });
 
-  it('resumo conta tarefas por status', async () => {
-    const api = comToken(await registrar());
-    const { body } = await api.post('/api/tarefas', { titulo: 'A', prioridade: 'alta' });
-    await api.post('/api/tarefas', { titulo: 'B', prioridade: 'alta' });
-    await api.post('/api/tarefas', { titulo: 'C' });
-    await api.put(`/api/tarefas/${body.id}`, { concluida: true });
+  it('summary counts tasks by status', async () => {
+    const api = withToken(await register());
+    const { body } = await api.post('/api/tasks', { title: 'A', priority: 'high' });
+    await api.post('/api/tasks', { title: 'B', priority: 'high' });
+    await api.post('/api/tasks', { title: 'C' });
+    await api.put(`/api/tasks/${body.id}`, { completed: true });
 
-    const res = await api.get('/api/tarefas/resumo');
+    const res = await api.get('/api/tasks/summary');
     assert.equal(res.status, 200);
-    assert.deepEqual(res.body, { total: 3, concluidas: 1, pendentes: 2, pendentes_alta: 1 });
+    assert.deepEqual(res.body, { total: 3, completed: 1, pending: 2, pending_high: 1 });
   });
 });
 
-describe('limite de tentativas', () => {
-  it('bloqueia o IP depois de muitas tentativas de login', async () => {
-    // app separado com limite 3, pra não depender do limite alto usado nos outros testes
+describe('attempt limit', () => {
+  it('blocks the IP after too many login attempts', async () => {
+    // separate app with a limit of 3, so it doesn't depend on the high limit used in the other tests
     const express = require('express');
-    const limiteTentativas = require('../src/middleware/limiteTentativas');
-    const appLimitado = express();
-    appLimitado.post('/login', limiteTentativas(3), (req, res) => res.status(401).json({ erro: 'senha errada' }));
+    const loginLimiter = require('../src/middleware/loginLimiter');
+    const limitedApp = express();
+    limitedApp.post('/login', loginLimiter(3), (req, res) => res.status(401).json({ error: 'wrong password' }));
 
     for (let i = 0; i < 3; i++) {
-      assert.equal((await request(appLimitado).post('/login')).status, 401);
+      assert.equal((await request(limitedApp).post('/login')).status, 401);
     }
-    const bloqueado = await request(appLimitado).post('/login');
-    assert.equal(bloqueado.status, 429);
-    assert.match(bloqueado.body.erro, /Muitas tentativas/);
+    const blocked = await request(limitedApp).post('/login');
+    assert.equal(blocked.status, 429);
+    assert.match(blocked.body.error, /Too many attempts/);
   });
 });

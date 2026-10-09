@@ -1,77 +1,77 @@
-// sobe um Postgres temporário pros testes (ou usa o do CI se TEST_DB_HOST existir)
+// starts a temporary Postgres for the tests (or uses the CI one if TEST_DB_HOST is set)
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const net = require('net');
 
-function portaLivre() {
+function freePort() {
   return new Promise((resolve, reject) => {
-    const servidor = net.createServer();
-    servidor.listen(0, () => {
-      const { port } = servidor.address();
-      servidor.close(() => resolve(port));
+    const server = net.createServer();
+    server.listen(0, () => {
+      const { port } = server.address();
+      server.close(() => resolve(port));
     });
-    servidor.on('error', reject);
+    server.on('error', reject);
   });
 }
 
-async function iniciarBanco() {
-  process.env.JWT_SECRET = 'segredo-de-teste';
+async function startDatabase() {
+  process.env.JWT_SECRET = 'test-secret';
   process.env.JWT_EXPIRES_IN = '1h';
-  process.env.LIMITE_TENTATIVAS = '10000';
+  process.env.LOGIN_ATTEMPT_LIMIT = '10000';
 
-  let pararBanco = async () => {};
+  let stopDatabase = async () => {};
 
   if (process.env.TEST_DB_HOST) {
     process.env.DB_HOST = process.env.TEST_DB_HOST;
     process.env.DB_PORT = process.env.TEST_DB_PORT || '5432';
-    process.env.DB_NAME = process.env.TEST_DB_NAME || 'tarefas_test';
+    process.env.DB_NAME = process.env.TEST_DB_NAME || 'tasks_test';
     process.env.DB_USER = process.env.TEST_DB_USER || 'postgres';
     process.env.DB_PASSWORD = process.env.TEST_DB_PASSWORD || 'postgres';
   } else {
     const EmbeddedPostgres = require('embedded-postgres').default;
-    const pasta = fs.mkdtempSync(path.join(os.tmpdir(), 'api-tarefas-pg-'));
-    const porta = await portaLivre();
+    const folder = fs.mkdtempSync(path.join(os.tmpdir(), 'task-api-pg-'));
+    const port = await freePort();
 
     const pg = new EmbeddedPostgres({
-      databaseDir: pasta,
+      databaseDir: folder,
       user: 'postgres',
       password: 'postgres',
-      port: porta,
+      port,
       persistent: false,
       onLog: () => {},
     });
     await pg.initialise();
     await pg.start();
-    await pg.createDatabase('tarefas_test');
+    await pg.createDatabase('tasks_test');
 
     Object.assign(process.env, {
       DB_HOST: 'localhost',
-      DB_PORT: String(porta),
-      DB_NAME: 'tarefas_test',
+      DB_PORT: String(port),
+      DB_NAME: 'tasks_test',
       DB_USER: 'postgres',
       DB_PASSWORD: 'postgres',
     });
-    pararBanco = () => pg.stop();
+    stopDatabase = () => pg.stop();
   }
 
-  // só importa agora, depois de setar as variáveis
+  // only imported now, after setting the variables
   const pool = require('../config/database');
   const schema = fs.readFileSync(path.join(__dirname, '..', 'config', 'schema.sql'), 'utf8');
   await pool.query(schema);
-  // roda duas vezes pra garantir que o schema aguenta rodar de novo
+  // runs twice to make sure the schema can run again
   await pool.query(schema);
 
   return {
     pool,
-    async limpar() {
-      await pool.query('TRUNCATE tarefas, usuarios RESTART IDENTITY CASCADE');
+    async clear() {
+      await pool.query('TRUNCATE tasks, users RESTART IDENTITY CASCADE');
     },
-    async parar() {
+    async stop() {
       await pool.end();
-      await pararBanco();
+      await stopDatabase();
     },
   };
 }
 
-module.exports = { iniciarBanco };
+module.exports = { startDatabase };

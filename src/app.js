@@ -1,9 +1,9 @@
 const express = require('express');
 const cors = require('cors');
 
-const rotas = require('./routes/index');
+const routes = require('./routes/index');
 
-// o listen fica no server.js, assim os testes usam o app sem abrir porta
+// listen lives in server.js, so the tests use the app without opening a port
 const app = express();
 
 app.use(cors());
@@ -11,22 +11,22 @@ app.use(cors());
 app.use(express.json());
 
 app.get('/', (req, res) => {
-  res.json({ status: 'ok', mensagem: 'API de Tarefas funcionando!' });
+  res.json({ status: 'ok', message: 'Task API is running!' });
 });
 
-app.use('/api', rotas);
+app.use('/api', routes);
 
 app.use((req, res) => {
-  res.status(404).json({ erro: 'Rota não encontrada' });
+  res.status(404).json({ error: 'Route not found' });
 });
 
 // eslint-disable-next-line no-unused-vars
 app.use((err, req, res, next) => {
   if (err.type === 'entity.parse.failed') {
-    return res.status(400).json({ erro: 'JSON inválido no corpo da requisição' });
+    return res.status(400).json({ error: 'Invalid JSON in the request body' });
   }
-  console.error('Erro inesperado:', err);
-  res.status(500).json({ erro: 'Erro interno do servidor' });
+  console.error('Unexpected error:', err);
+  res.status(500).json({ error: 'Internal server error' });
 });
 
 module.exports = app;

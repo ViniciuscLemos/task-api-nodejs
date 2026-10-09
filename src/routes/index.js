@@ -2,23 +2,23 @@ const express = require('express');
 const router = express.Router();
 
 const authController = require('../controllers/authController');
-const tarefasController = require('../controllers/tarefasController');
-const autenticar = require('../middleware/auth');
-const validarId = require('../middleware/validarId');
-const limiteTentativas = require('../middleware/limiteTentativas');
+const tasksController = require('../controllers/tasksController');
+const authenticate = require('../middleware/auth');
+const validateId = require('../middleware/validateId');
+const loginLimiter = require('../middleware/loginLimiter');
 
-const limite = limiteTentativas();
-router.post('/auth/registro', limite, authController.registro);
-router.post('/auth/login', limite, authController.login);
+const limiter = loginLimiter();
+router.post('/auth/register', limiter, authController.register);
+router.post('/auth/login', limiter, authController.login);
 
-router.get('/auth/me', autenticar, authController.me);
+router.get('/auth/me', authenticate, authController.me);
 
-router.get('/tarefas', autenticar, tarefasController.listar);
-// tem que vir antes do /:id, senão "resumo" vira id
-router.get('/tarefas/resumo', autenticar, tarefasController.resumo);
-router.get('/tarefas/:id', autenticar, validarId, tarefasController.buscarPorId);
-router.post('/tarefas', autenticar, tarefasController.criar);
-router.put('/tarefas/:id', autenticar, validarId, tarefasController.atualizar);
-router.delete('/tarefas/:id', autenticar, validarId, tarefasController.remover);
+router.get('/tasks', authenticate, tasksController.list);
+// has to come before /:id, otherwise "summary" becomes an id
+router.get('/tasks/summary', authenticate, tasksController.summary);
+router.get('/tasks/:id', authenticate, validateId, tasksController.getById);
+router.post('/tasks', authenticate, tasksController.create);
+router.put('/tasks/:id', authenticate, validateId, tasksController.update);
+router.delete('/tasks/:id', authenticate, validateId, tasksController.remove);
 
 module.exports = router;

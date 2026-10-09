@@ -1,17 +1,17 @@
-# Sobe a API e o PostgreSQL com um comando: docker compose up
+# Starts the API and PostgreSQL with one command: docker compose up
 services:
   db:
     image: postgres:16-alpine
     environment:
-      POSTGRES_DB: tarefas_db
+      POSTGRES_DB: tasks_db
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
     volumes:
-      - dados:/var/lib/postgresql/data
-      # Scripts nesta pasta rodam automaticamente na primeira inicialização
+      - data:/var/lib/postgresql/data
+      # Scripts in this folder run automatically on the first start
       - ./config/schema.sql:/docker-entrypoint-initdb.d/schema.sql:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d tarefas_db"]
+      test: ["CMD-SHELL", "pg_isready -U postgres -d tasks_db"]
       interval: 3s
       retries: 10
 
@@ -23,14 +23,14 @@ services:
       PORT: 3000
       DB_HOST: db
       DB_PORT: 5432
-      DB_NAME: tarefas_db
+      DB_NAME: tasks_db
       DB_USER: postgres
       DB_PASSWORD: postgres
-      JWT_SECRET: ${JWT_SECRET:-troque-esta-chave-em-producao}
+      JWT_SECRET: ${JWT_SECRET:-change-this-key-in-production}
       JWT_EXPIRES_IN: 7d
     depends_on:
       db:
         condition: service_healthy
 
 volumes:
-  dados:
+  data:

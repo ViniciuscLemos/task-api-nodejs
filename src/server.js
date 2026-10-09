@@ -2,9 +2,9 @@ const dotenv = require('dotenv');
 
 dotenv.config();
 
-// sem JWT_SECRET o login quebraria, então já para aqui
+// without JWT_SECRET login would break, so stop right here
 if (!process.env.JWT_SECRET) {
-  console.error('JWT_SECRET não definido. Copie .env.example para .env e preencha os valores.');
+  console.error('JWT_SECRET is not set. Copy .env.example to .env and fill in the values.');
   process.exit(1);
 }
 
@@ -13,32 +13,32 @@ const pool = require('../config/database');
 
 const PORT = process.env.PORT || 3000;
 
-const servidor = app.listen(PORT, async () => {
-  console.log(`\n🚀 Servidor rodando em http://localhost:${PORT}`);
+const server = app.listen(PORT, async () => {
+  console.log(`\n🚀 Server running at http://localhost:${PORT}`);
 
   try {
     await pool.query('SELECT 1');
-    console.log('Conectado ao PostgreSQL');
+    console.log('Connected to PostgreSQL');
   } catch (err) {
-    console.error('Não foi possível conectar ao PostgreSQL:', err.message);
+    console.error("Couldn't connect to PostgreSQL:", err.message);
   }
 
-  console.log(`📋 Rotas disponíveis:`);
-  console.log(`   POST   /api/auth/registro`);
+  console.log(`📋 Available routes:`);
+  console.log(`   POST   /api/auth/register`);
   console.log(`   POST   /api/auth/login`);
   console.log(`   GET    /api/auth/me`);
-  console.log(`   GET    /api/tarefas`);
-  console.log(`   GET    /api/tarefas/resumo`);
-  console.log(`   GET    /api/tarefas/:id`);
-  console.log(`   POST   /api/tarefas`);
-  console.log(`   PUT    /api/tarefas/:id`);
-  console.log(`   DELETE /api/tarefas/:id\n`);
+  console.log(`   GET    /api/tasks`);
+  console.log(`   GET    /api/tasks/summary`);
+  console.log(`   GET    /api/tasks/:id`);
+  console.log(`   POST   /api/tasks`);
+  console.log(`   PUT    /api/tasks/:id`);
+  console.log(`   DELETE /api/tasks/:id\n`);
 });
 
-// Ctrl+C: espera as requisições terminarem e fecha o pool
-function encerrar() {
-  console.log('\nEncerrando servidor...');
-  servidor.close(() => pool.end().then(() => process.exit(0)));
+// Ctrl+C: waits for the requests to finish and closes the pool
+function shutdown() {
+  console.log('\nShutting down server...');
+  server.close(() => pool.end().then(() => process.exit(0)));
 }
-process.on('SIGINT', encerrar);
-process.on('SIGTERM', encerrar);
+process.on('SIGINT', shutdown);
+process.on('SIGTERM', shutdown);

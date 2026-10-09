@@ -1,7 +1,7 @@
 const { Pool } = require('pg');
 require('dotenv').config();
 
-// a conexão só abre na primeira query
+// the connection only opens on the first query
 const pool = new Pool({
   host: process.env.DB_HOST,
   port: process.env.DB_PORT,

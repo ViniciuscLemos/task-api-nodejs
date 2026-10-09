@@ -4,110 +4,110 @@ const pool = require('../../config/database');
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-// usado no login quando o e-mail não existe (explicação lá embaixo)
-const HASH_FALSO = bcrypt.hashSync('senha-que-ninguem-usa', 10);
+// used on login when the email doesn't exist (explained further down)
+const FAKE_HASH = bcrypt.hashSync('a-password-nobody-uses', 10);
 
-function gerarToken(usuario) {
+function createToken(user) {
   return jwt.sign(
-    { id: usuario.id, email: usuario.email },
+    { id: user.id, email: user.email },
     process.env.JWT_SECRET,
     { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
   );
 }
 
-// POST /auth/registro
-async function registro(req, res) {
-  const { nome, email, senha } = req.body;
+// POST /auth/register
+async function register(req, res) {
+  const { name, email, password } = req.body;
 
-  if (typeof nome !== 'string' || typeof email !== 'string' || typeof senha !== 'string'
-      || !nome.trim() || !email.trim() || !senha) {
-    return res.status(400).json({ erro: 'Nome, email e senha são obrigatórios' });
+  if (typeof name !== 'string' || typeof email !== 'string' || typeof password !== 'string'
+      || !name.trim() || !email.trim() || !password) {
+    return res.status(400).json({ error: 'Name, email and password are required' });
   }
 
-  const emailNormalizado = email.trim().toLowerCase();
+  const normalizedEmail = email.trim().toLowerCase();
 
-  if (!EMAIL_REGEX.test(emailNormalizado)) {
-    return res.status(400).json({ erro: 'Email inválido' });
+  if (!EMAIL_REGEX.test(normalizedEmail)) {
+    return res.status(400).json({ error: 'Invalid email' });
   }
 
-  if (senha.length < 6) {
-    return res.status(400).json({ erro: 'A senha deve ter pelo menos 6 caracteres' });
+  if (password.length < 6) {
+    return res.status(400).json({ error: 'Password must have at least 6 characters' });
   }
 
   try {
-    const senhaHash = await bcrypt.hash(senha, 10);
+    const passwordHash = await bcrypt.hash(password, 10);
 
-    // email é UNIQUE, então e-mail repetido cai no catch com código 23505.
-    // (fazer um SELECT antes deixaria duas requisições ao mesmo tempo criarem a mesma conta)
-    const resultado = await pool.query(
-      'INSERT INTO usuarios (nome, email, senha) VALUES ($1, $2, $3) RETURNING id, nome, email, criado_em',
-      [nome.trim(), emailNormalizado, senhaHash]
+    // email is UNIQUE, so a repeated email lands in the catch with code 23505.
+    // (doing a SELECT first would let two simultaneous requests create the same account)
+    const result = await pool.query(
+      'INSERT INTO users (name, email, password) VALUES ($1, $2, $3) RETURNING id, name, email, created_at',
+      [name.trim(), normalizedEmail, passwordHash]
     );
 
-    const usuario = resultado.rows[0];
-    return res.status(201).json({ usuario, token: gerarToken(usuario) });
+    const user = result.rows[0];
+    return res.status(201).json({ user, token: createToken(user) });
   } catch (err) {
     if (err.code === '23505') {
-      return res.status(409).json({ erro: 'Email já cadastrado' });
+      return res.status(409).json({ error: 'Email already registered' });
     }
-    console.error('Erro no registro:', err);
-    return res.status(500).json({ erro: 'Erro interno do servidor' });
+    console.error('Error on register:', err);
+    return res.status(500).json({ error: 'Internal server error' });
   }
 }
 
 // POST /auth/login
 async function login(req, res) {
-  const { email, senha } = req.body;
+  const { email, password } = req.body;
 
-  if (typeof email !== 'string' || typeof senha !== 'string' || !email || !senha) {
-    return res.status(400).json({ erro: 'Email e senha são obrigatórios' });
+  if (typeof email !== 'string' || typeof password !== 'string' || !email || !password) {
+    return res.status(400).json({ error: 'Email and password are required' });
   }
 
   try {
-    const resultado = await pool.query(
-      'SELECT * FROM usuarios WHERE email = $1',
+    const result = await pool.query(
+      'SELECT * FROM users WHERE email = $1',
       [email.trim().toLowerCase()]
     );
 
-    const usuario = resultado.rows[0];
+    const user = result.rows[0];
 
-    // Mesmo sem usuário compara com um hash falso. Senão a resposta pra e-mail
-    // inexistente volta bem mais rápido, e dá pra descobrir quem tem conta pelo tempo.
-    const senhaCorreta = await bcrypt.compare(senha, usuario ? usuario.senha : HASH_FALSO);
+    // Compares against a fake hash even with no user. Otherwise the response for an email
+    // that doesn't exist comes back much faster, and you can tell who has an account by the timing.
+    const passwordOk = await bcrypt.compare(password, user ? user.password : FAKE_HASH);
 
-    if (!usuario || !senhaCorreta) {
-      // mesma mensagem pros dois casos, pra não dizer se o e-mail existe
-      return res.status(401).json({ erro: 'Email ou senha incorretos' });
+    if (!user || !passwordOk) {
+      // same message for both cases, so it doesn't reveal whether the email exists
+      return res.status(401).json({ error: 'Wrong email or password' });
     }
 
     return res.json({
-      usuario: { id: usuario.id, nome: usuario.nome, email: usuario.email },
-      token: gerarToken(usuario),
+      user: { id: user.id, name: user.name, email: user.email },
+      token: createToken(user),
     });
   } catch (err) {
-    console.error('Erro no login:', err);
-    return res.status(500).json({ erro: 'Erro interno do servidor' });
+    console.error('Error on login:', err);
+    return res.status(500).json({ error: 'Internal server error' });
   }
 }
 
 // GET /auth/me
 async function me(req, res) {
   try {
-    const resultado = await pool.query(
-      'SELECT id, nome, email, criado_em FROM usuarios WHERE id = $1',
-      [req.usuario.id]
+    const result = await pool.query(
+      'SELECT id, name, email, created_at FROM users WHERE id = $1',
+      [req.user.id]
     );
 
-    if (resultado.rows.length === 0) {
-      // token válido mas a conta foi apagada
-      return res.status(404).json({ erro: 'Usuário não encontrado' });
+    if (result.rows.length === 0) {
+      // valid token but the account was deleted
+      return res.status(404).json({ error: 'User not found' });
     }
 
-    return res.json(resultado.rows[0]);
+    return res.json(result.rows[0]);
   } catch (err) {
-    console.error('Erro ao buscar usuário:', err);
-    return res.status(500).json({ erro: 'Erro interno do servidor' });
+    console.error('Error getting user:', err);
+    return res.status(500).json({ error: 'Internal server error' });
   }
 }
 
-module.exports = { registro, login, me };
+module.exports = { register, login, me };

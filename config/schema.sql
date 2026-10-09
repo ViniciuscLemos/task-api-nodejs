@@ -1,46 +1,46 @@
 -- ============================================
--- Schema do banco de dados - API de Tarefas
--- Execute este arquivo antes de iniciar a API
--- Pode ser executado mais de uma vez sem erro.
+-- Database schema - Task API
+-- Run this file before starting the API
+-- It can run more than once without errors.
 -- ============================================
 
--- Tabela de usuários
-CREATE TABLE IF NOT EXISTS usuarios (
-  id        SERIAL PRIMARY KEY,
-  nome      VARCHAR(100) NOT NULL,
-  email     VARCHAR(150) UNIQUE NOT NULL,
-  senha     VARCHAR(255) NOT NULL,         -- armazena o hash bcrypt
-  criado_em TIMESTAMP DEFAULT NOW()
+-- Users table
+CREATE TABLE IF NOT EXISTS users (
+  id         SERIAL PRIMARY KEY,
+  name       VARCHAR(100) NOT NULL,
+  email      VARCHAR(150) UNIQUE NOT NULL,
+  password   VARCHAR(255) NOT NULL,         -- stores the bcrypt hash
+  created_at TIMESTAMP DEFAULT NOW()
 );
 
--- Tabela de tarefas
--- Cada tarefa pertence a um usuário (chave estrangeira)
-CREATE TABLE IF NOT EXISTS tarefas (
+-- Tasks table
+-- Each task belongs to a user (foreign key)
+CREATE TABLE IF NOT EXISTS tasks (
   id          SERIAL PRIMARY KEY,
-  titulo      VARCHAR(200) NOT NULL,
-  descricao   TEXT,
-  concluida   BOOLEAN DEFAULT FALSE,
-  prioridade  VARCHAR(10) CHECK (prioridade IN ('baixa', 'media', 'alta')) DEFAULT 'media',
-  usuario_id  INTEGER NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
-  criado_em   TIMESTAMP DEFAULT NOW(),
-  atualizado_em TIMESTAMP DEFAULT NOW()
+  title       VARCHAR(200) NOT NULL,
+  description TEXT,
+  completed   BOOLEAN DEFAULT FALSE,
+  priority    VARCHAR(10) CHECK (priority IN ('low', 'medium', 'high')) DEFAULT 'medium',
+  user_id     INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  created_at  TIMESTAMP DEFAULT NOW(),
+  updated_at  TIMESTAMP DEFAULT NOW()
 );
 
--- Index para acelerar buscas por usuário
-CREATE INDEX IF NOT EXISTS idx_tarefas_usuario ON tarefas(usuario_id);
+-- Index to speed up lookups by user
+CREATE INDEX IF NOT EXISTS idx_tasks_user ON tasks(user_id);
 
--- Função que atualiza o campo atualizado_em automaticamente
-CREATE OR REPLACE FUNCTION atualizar_timestamp()
+-- Function that updates updated_at automatically
+CREATE OR REPLACE FUNCTION set_updated_at()
 RETURNS TRIGGER AS $$
 BEGIN
-  NEW.atualizado_em = NOW();
+  NEW.updated_at = NOW();
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
 
--- Trigger que chama a função acima antes de qualquer UPDATE na tabela tarefas
--- (DROP antes do CREATE para o script poder ser executado novamente)
-DROP TRIGGER IF EXISTS trigger_atualizar_tarefas ON tarefas;
-CREATE TRIGGER trigger_atualizar_tarefas
-  BEFORE UPDATE ON tarefas
-  FOR EACH ROW EXECUTE FUNCTION atualizar_timestamp();
+-- Trigger that calls the function above before any UPDATE on tasks
+-- (DROP before CREATE so the script can run again)
+DROP TRIGGER IF EXISTS trigger_update_tasks ON tasks;
+CREATE TRIGGER trigger_update_tasks
+  BEFORE UPDATE ON tasks
+  FOR EACH ROW EXECUTE FUNCTION set_updated_at();

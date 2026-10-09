@@ -1,7 +1,7 @@
 {
-  "name": "api-tarefas",
+  "name": "task-api",
   "version": "1.1.0",
-  "description": "API REST de gerenciamento de tarefas com autenticação JWT",
+  "description": "Task management REST API with JWT authentication",
   "main": "src/server.js",
   "scripts": {
     "start": "node src/server.js",

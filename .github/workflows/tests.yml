@@ -1,19 +1,19 @@
-name: Testes
+name: Tests
 
 on:
   push:
   pull_request:
 
 jobs:
-  testes:
+  tests:
     runs-on: ubuntu-latest
 
-    # PostgreSQL de verdade para os testes de integração
+    # Real PostgreSQL for the integration tests
     services:
       postgres:
         image: postgres:16
         env:
-          POSTGRES_DB: tarefas_test
+          POSTGRES_DB: tasks_test
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
         ports:
@@ -38,6 +38,6 @@ jobs:
         env:
           TEST_DB_HOST: localhost
           TEST_DB_PORT: 5432
-          TEST_DB_NAME: tarefas_test
+          TEST_DB_NAME: tasks_test
           TEST_DB_USER: postgres
           TEST_DB_PASSWORD: postgres
