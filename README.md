@@ -34,6 +34,8 @@ npm test
 
 The tests start a temporary Postgres on their own (the `embedded-postgres` package), so you don't need the database installed to run them.
 
+![The 19 tests passing: auth, task CRUD, users not seeing each other's tasks, search and the login attempt limit](docs/screenshot-tests.png)
+
 ## Docs
 
 With the API running, open http://localhost:3000/docs. It's a Swagger UI with every route: create an account, click **Authorize**, paste the token and you can try everything from the browser. The OpenAPI file itself is at `/api/openapi.json`.
