@@ -229,6 +229,21 @@ module.exports = {
         },
       },
     },
+    '/tasks/completed': {
+      delete: {
+        tags: ['Tasks'],
+        summary: 'Delete every completed task',
+        security: [{ bearerAuth: [] }],
+        responses: {
+          200: json({
+            type: 'object',
+            properties: { removed: { type: 'integer', example: 3 } },
+          }),
+          401: unauthorized,
+          500: serverError,
+        },
+      },
+    },
     '/tasks/{id}': {
       get: {
         tags: ['Tasks'],

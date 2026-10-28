@@ -242,4 +242,18 @@ async function remove(req, res) {
   }
 }
 
-module.exports = { list, summary, getById, create, update, remove };
+// DELETE /tasks/completed
+async function clearCompleted(req, res) {
+  try {
+    const result = await pool.query(
+      'DELETE FROM tasks WHERE user_id = $1 AND completed',
+      [req.user.id]
+    );
+    return res.json({ removed: result.rowCount });
+  } catch (err) {
+    console.error('Error clearing completed tasks:', err);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+}
+
+module.exports = { list, summary, getById, create, update, remove, clearCompleted };

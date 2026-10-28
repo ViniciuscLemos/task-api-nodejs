@@ -246,6 +246,23 @@ describe('tasks', () => {
     assert.equal(res.status, 200);
     assert.deepEqual(res.body, { total: 3, completed: 1, pending: 2, pending_high: 1 });
   });
+
+  it('clears only my completed tasks', async () => {
+    const ana = withToken(await register('ana@email.com'));
+    const bia = withToken(await register('bia@email.com', 'Bia'));
+    for (const api of [ana, bia]) {
+      const { body } = await api.post('/api/tasks', { title: 'Done' });
+      await api.put(`/api/tasks/${body.id}`, { completed: true });
+      await api.post('/api/tasks', { title: 'Still open' });
+    }
+
+    const res = await ana.delete('/api/tasks/completed');
+    assert.equal(res.status, 200);
+    assert.deepEqual(res.body, { removed: 1 });
+    assert.deepEqual((await ana.get('/api/tasks')).body.tasks.map((t) => t.title), ['Still open']);
+    assert.equal((await bia.get('/api/tasks')).body.total, 2);
+    assert.deepEqual((await ana.delete('/api/tasks/completed')).body, { removed: 0 });
+  });
 });
 
 describe('attempt limit', () => {

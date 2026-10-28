@@ -16,6 +16,7 @@ router.get('/auth/me', authenticate, authController.me);
 router.get('/tasks', authenticate, tasksController.list);
 // has to come before /:id, otherwise "summary" becomes an id
 router.get('/tasks/summary', authenticate, tasksController.summary);
+router.delete('/tasks/completed', authenticate, tasksController.clearCompleted);
 router.get('/tasks/:id', authenticate, validateId, tasksController.getById);
 router.post('/tasks', authenticate, tasksController.create);
 router.put('/tasks/:id', authenticate, validateId, tasksController.update);
