@@ -183,6 +183,10 @@ async function update(req, res) {
   }
 
   const { title, description, completed, priority } = req.body;
+  // {} or only unknown fields used to answer 200 without changing anything
+  if ([title, description, completed, priority].every((field) => field === undefined)) {
+    return res.status(400).json({ error: 'Send at least one field: title, description, completed or priority' });
+  }
 
   try {
     // COALESCE keeps the current value when the field wasn't sent.

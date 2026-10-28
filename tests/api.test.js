@@ -173,6 +173,8 @@ describe('tasks', () => {
     const { body } = await api.post('/api/tasks', { title: 'A' });
     assert.equal((await api.put(`/api/tasks/${body.id}`, { priority: 'urgent' })).status, 400);
     assert.equal((await api.put(`/api/tasks/${body.id}`, { completed: 'yes' })).status, 400);
+    assert.equal((await api.put(`/api/tasks/${body.id}`, {})).status, 400);
+    assert.equal((await api.put(`/api/tasks/${body.id}`, { done: true })).status, 400);
   });
 
   it('invalid ID returns 400 instead of a 500 error', async () => {

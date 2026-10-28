@@ -253,7 +253,7 @@ module.exports = {
         },
         responses: {
           200: json({ $ref: '#/components/schemas/Task' }),
-          400: error('completed must be true or false'),
+          400: error('Send at least one field: title, description, completed or priority'),
           401: unauthorized,
           404: error('Task not found'),
         },
