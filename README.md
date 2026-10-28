@@ -58,6 +58,7 @@ Tasks (all of them need the `Authorization: Bearer <token>` header):
 - `POST /api/tasks`
 - `PUT /api/tasks/:id` (you can send only the field you want to change)
 - `DELETE /api/tasks/:id`
+- `DELETE /api/tasks/completed` clears the ones already done and says how many went away
 
 The list accepts filters in the URL, for example:
 
