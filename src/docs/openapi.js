@@ -222,6 +222,15 @@ module.exports = {
               completed: { type: 'integer', example: 5 },
               pending: { type: 'integer', example: 7 },
               pending_high: { type: 'integer', example: 2 },
+              pending_by_priority: {
+                type: 'object',
+                properties: {
+                  high: { type: 'integer', example: 2 },
+                  medium: { type: 'integer', example: 4 },
+                  low: { type: 'integer', example: 1 },
+                },
+              },
+              done_percent: { type: 'integer', example: 42 },
             },
           }),
           401: unauthorized,

@@ -113,14 +113,19 @@ async function summary(req, res) {
          COUNT(*)                                          AS total,
          COUNT(*) FILTER (WHERE completed)                 AS completed,
          COUNT(*) FILTER (WHERE NOT completed)             AS pending,
-         COUNT(*) FILTER (WHERE NOT completed AND priority = 'high') AS pending_high
+         COUNT(*) FILTER (WHERE NOT completed AND priority = 'high') AS pending_high,
+         COUNT(*) FILTER (WHERE NOT completed AND priority = 'medium') AS pending_medium,
+         COUNT(*) FILTER (WHERE NOT completed AND priority = 'low') AS pending_low
        FROM tasks WHERE user_id = $1`,
       [req.user.id]
     );
 
     // pg returns COUNT as a string
-    const row = result.rows[0];
-    const data = Object.fromEntries(Object.entries(row).map(([k, v]) => [k, Number(v)]));
+    const row = Object.fromEntries(Object.entries(result.rows[0]).map(([k, v]) => [k, Number(v)]));
+    const { pending_medium, pending_low, ...data } = row;
+    data.pending_by_priority = { high: row.pending_high, medium: pending_medium, low: pending_low };
+    // whole number, 0 when there's nothing yet
+    data.done_percent = row.total ? Math.round((row.completed / row.total) * 100) : 0;
     return res.json(data);
   } catch (err) {
     console.error('Error building summary:', err);

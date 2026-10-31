@@ -244,7 +244,21 @@ describe('tasks', () => {
 
     const res = await api.get('/api/tasks/summary');
     assert.equal(res.status, 200);
-    assert.deepEqual(res.body, { total: 3, completed: 1, pending: 2, pending_high: 1 });
+    assert.deepEqual(res.body, {
+      total: 3,
+      completed: 1,
+      pending: 2,
+      pending_high: 1,
+      pending_by_priority: { high: 1, medium: 1, low: 0 },
+      done_percent: 33,
+    });
+  });
+
+  it('summary with no tasks is all zero', async () => {
+    const api = withToken(await register());
+    const res = await api.get('/api/tasks/summary');
+    assert.equal(res.body.done_percent, 0);
+    assert.deepEqual(res.body.pending_by_priority, { high: 0, medium: 0, low: 0 });
   });
 
   it('toggle flips completed back and forth', async () => {
