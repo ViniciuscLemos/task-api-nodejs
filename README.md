@@ -115,7 +115,14 @@ curl -X POST localhost:3000/api/tasks   -H "Authorization: Bearer YOUR_TOKEN"   
 After creating one more and marking it as done, `GET /api/tasks/summary` looks like this:
 
 ```json
-{ "total": 2, "completed": 1, "pending": 1, "pending_high": 1 }
+{
+  "total": 2,
+  "completed": 1,
+  "pending": 1,
+  "pending_high": 1,
+  "pending_by_priority": { "high": 1, "medium": 0, "low": 0 },
+  "done_percent": 50
+}
 ```
 
 These are real responses, I got them by running the API.
