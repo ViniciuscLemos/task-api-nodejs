@@ -242,6 +242,28 @@ async function remove(req, res) {
   }
 }
 
+// POST /tasks/:id/toggle
+// saves the client from fetching the task just to send the opposite value back
+async function toggle(req, res) {
+  const { id } = req.params;
+
+  try {
+    const result = await pool.query(
+      'UPDATE tasks SET completed = NOT completed WHERE id = $1 AND user_id = $2 RETURNING *',
+      [id, req.user.id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Task not found' });
+    }
+
+    return res.json(result.rows[0]);
+  } catch (err) {
+    console.error('Error toggling task:', err);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+}
+
 // DELETE /tasks/completed
 async function clearCompleted(req, res) {
   try {
@@ -256,4 +278,4 @@ async function clearCompleted(req, res) {
   }
 }
 
-module.exports = { list, summary, getById, create, update, remove, clearCompleted };
+module.exports = { list, summary, getById, create, update, toggle, remove, clearCompleted };

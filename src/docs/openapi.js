@@ -285,5 +285,19 @@ module.exports = {
         },
       },
     },
+    '/tasks/{id}/toggle': {
+      post: {
+        tags: ['Tasks'],
+        summary: 'Mark as done or as not done (flips the current value)',
+        security: [{ bearerAuth: [] }],
+        parameters: [idParam],
+        responses: {
+          200: json({ $ref: '#/components/schemas/Task' }),
+          400: error('Invalid ID: must be a positive integer'),
+          401: unauthorized,
+          404: error('Task not found'),
+        },
+      },
+    },
   },
 };

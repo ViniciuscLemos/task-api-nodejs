@@ -247,6 +247,20 @@ describe('tasks', () => {
     assert.deepEqual(res.body, { total: 3, completed: 1, pending: 2, pending_high: 1 });
   });
 
+  it('toggle flips completed back and forth', async () => {
+    const ana = withToken(await register('ana@email.com'));
+    const bia = withToken(await register('bia@email.com', 'Bia'));
+    const { body } = await ana.post('/api/tasks', { title: 'Gym' });
+
+    const first = await ana.post(`/api/tasks/${body.id}/toggle`);
+    assert.equal(first.status, 200);
+    assert.equal(first.body.completed, true);
+    assert.equal((await ana.post(`/api/tasks/${body.id}/toggle`)).body.completed, false);
+
+    assert.equal((await bia.post(`/api/tasks/${body.id}/toggle`)).status, 404);
+    assert.equal((await ana.post('/api/tasks/abc/toggle')).status, 400);
+  });
+
   it('clears only my completed tasks', async () => {
     const ana = withToken(await register('ana@email.com'));
     const bia = withToken(await register('bia@email.com', 'Bia'));
