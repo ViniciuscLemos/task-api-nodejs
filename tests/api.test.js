@@ -222,6 +222,11 @@ describe('tasks', () => {
     assert.equal(tooFar.body.total, 1);
     assert.equal(tooFar.body.total_pages, 1);
 
+    const low = sorted.body.tasks.find((t) => t.title === 'Low');
+    await api.put(`/api/tasks/${low.id}`, { description: 'touched last' });
+    const updated = await api.get('/api/tasks?sort=updated');
+    assert.equal(updated.body.tasks[0].title, 'Low');
+
     assert.equal((await api.get('/api/tasks?sort=;DROP TABLE')).status, 400);
     assert.equal((await api.get('/api/tasks?completed=maybe')).status, 400);
   });

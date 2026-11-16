@@ -14,6 +14,8 @@ const SORTS = {
   oldest: 'created_at ASC',
   priority: "CASE priority WHEN 'high' THEN 3 WHEN 'medium' THEN 2 ELSE 1 END DESC, created_at DESC",
   title: 'title ASC',
+  // the trigger in schema.sql keeps updated_at current, so this is "what I touched last"
+  updated: 'updated_at DESC, id DESC',
 };
 
 // returns the error message or null. On PUT (partial) the fields are optional

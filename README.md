@@ -66,7 +66,7 @@ The list accepts filters in the URL, for example:
 GET /api/tasks?completed=false&priority=high&search=study&sort=priority&page=1
 ```
 
-`sort` can be `recent`, `oldest`, `priority` or `title`.
+`sort` can be `recent`, `oldest`, `priority`, `title` or `updated` (the ones changed last come first).
 
 Sample task:
 
