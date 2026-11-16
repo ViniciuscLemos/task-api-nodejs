@@ -169,6 +169,8 @@ describe('tasks', () => {
     assert.equal((await api.post('/api/tasks', { title: '   ' })).status, 400);
     assert.equal((await api.post('/api/tasks', { title: 'x'.repeat(201) })).status, 400);
     assert.equal((await api.post('/api/tasks', { title: 'A', priority: 'urgent' })).status, 400);
+    assert.equal((await api.post('/api/tasks', { title: 'A', description: 'x'.repeat(2001) })).status, 400);
+    assert.equal((await api.post('/api/tasks', { title: 'A', description: 'x'.repeat(2000) })).status, 201);
 
     const { body } = await api.post('/api/tasks', { title: 'A' });
     assert.equal((await api.put(`/api/tasks/${body.id}`, { priority: 'urgent' })).status, 400);

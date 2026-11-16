@@ -4,6 +4,8 @@ const pool = require('../../config/database');
 
 const PRIORITIES = ['low', 'medium', 'high'];
 const TITLE_MAX = 200;
+// the column is TEXT, so without this one task could take the whole 100 kB the JSON parser allows
+const DESCRIPTION_MAX = 2000;
 
 // the user only picks a key from here, their text never goes into ORDER BY.
 // priority uses CASE because alphabetically 'high' would come before 'medium'
@@ -28,6 +30,9 @@ function validateTask(body, partial) {
   }
   if (description !== undefined && description !== null && typeof description !== 'string') {
     return 'Description must be text';
+  }
+  if (typeof description === 'string' && description.length > DESCRIPTION_MAX) {
+    return `Description must have at most ${DESCRIPTION_MAX} characters`;
   }
   if (completed !== undefined && typeof completed !== 'boolean') {
     return 'completed must be true or false';

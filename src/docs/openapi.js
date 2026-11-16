@@ -30,7 +30,7 @@ const idParam = {
 
 const taskFields = {
   title: { type: 'string', maxLength: 200, example: 'Study for the SQL exam' },
-  description: { type: 'string', nullable: true, example: 'Chapters 3 and 4' },
+  description: { type: 'string', nullable: true, maxLength: 2000, example: 'Chapters 3 and 4' },
   priority: { type: 'string', enum: ['low', 'medium', 'high'], example: 'high' },
 };
 

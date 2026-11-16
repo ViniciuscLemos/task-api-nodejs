@@ -134,6 +134,7 @@ These are real responses, I got them by running the API.
 - In the search, `%` and `_` are treated as text. Without that, searching "100%" returned any task with "100", because they're wildcards in `ILIKE`.
 - Login gives the same message for a wrong password and for an email that doesn't exist, and takes the same time in both cases. Otherwise you could find out who has an account by timing the response.
 - Register and login accept at most 10 attempts every 15 minutes per IP (`express-rate-limit`), so nobody can brute force passwords.
+- Titles go up to 200 characters and descriptions up to 2000. The description column is `TEXT`, so before the limit a single task could take the whole 100 kB the JSON parser accepts.
 - A repeated email is blocked by the database `UNIQUE` constraint, not by a `SELECT` before the `INSERT`, which would let two simultaneous requests create the same account.
 
 ## Structure
