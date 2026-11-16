@@ -215,6 +215,11 @@ describe('tasks', () => {
     assert.equal(page2.body.total_pages, 2);
     assert.deepEqual(page2.body.tasks.map((t) => t.title), ['Medium']);
 
+    const tooFar = await api.get('/api/tasks?priority=high&page=4');
+    assert.deepEqual(tooFar.body.tasks, []);
+    assert.equal(tooFar.body.total, 1);
+    assert.equal(tooFar.body.total_pages, 1);
+
     assert.equal((await api.get('/api/tasks?sort=;DROP TABLE')).status, 400);
     assert.equal((await api.get('/api/tasks?completed=maybe')).status, 400);
   });

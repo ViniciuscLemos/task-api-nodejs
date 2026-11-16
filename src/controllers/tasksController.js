@@ -89,7 +89,13 @@ async function list(req, res) {
       [...params, limit, (page - 1) * limit]
     );
 
-    const total = result.rows.length ? Number(result.rows[0].filtered_total) : 0;
+    let total = result.rows.length ? Number(result.rows[0].filtered_total) : 0;
+    // past the last page there are no rows to carry the count, and it came back as 0 tasks
+    // in total, so a client that went one page too far thought the list was empty
+    if (!result.rows.length && page > 1) {
+      const count = await pool.query(`SELECT COUNT(*) AS n FROM tasks ${filters}`, params);
+      total = Number(count.rows[0].n);
+    }
     const tasks = result.rows.map(({ filtered_total, ...task }) => task);
 
     return res.json({
