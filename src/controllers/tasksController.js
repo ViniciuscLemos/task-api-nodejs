@@ -184,7 +184,8 @@ async function create(req, res) {
       [title.trim(), description || null, priority || 'medium', req.user.id]
     );
 
-    return res.status(201).json(result.rows[0]);
+    // Location says where the new task lives, so a client doesn't have to build the URL itself
+    return res.status(201).location(`/api/tasks/${result.rows[0].id}`).json(result.rows[0]);
   } catch (err) {
     console.error('Error creating task:', err);
     return res.status(500).json({ error: 'Internal server error' });

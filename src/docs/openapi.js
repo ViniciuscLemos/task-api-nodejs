@@ -202,7 +202,10 @@ const spec = {
           content: { 'application/json': { schema: { $ref: '#/components/schemas/NewTask' } } },
         },
         responses: {
-          201: json({ $ref: '#/components/schemas/Task' }, 'Task created'),
+          201: {
+            ...json({ $ref: '#/components/schemas/Task' }, 'Task created'),
+            headers: { Location: { schema: { type: 'string', example: '/api/tasks/42' } } },
+          },
           400: error('Task title is required'),
           401: unauthorized,
           500: serverError,

@@ -142,6 +142,7 @@ describe('tasks', () => {
 
     const created = await api.post('/api/tasks', { title: '  Study Node  ', priority: 'high' });
     assert.equal(created.status, 201);
+    assert.equal(created.headers.location, `/api/tasks/${created.body.id}`);
     assert.equal(created.body.title, 'Study Node');
     assert.equal(created.body.completed, false);
     const id = created.body.id;
