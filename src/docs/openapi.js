@@ -34,7 +34,7 @@ const taskFields = {
   priority: { type: 'string', enum: ['low', 'medium', 'high'], example: 'high' },
 };
 
-module.exports = {
+const spec = {
   openapi: '3.0.3',
   info: {
     title: 'Task API',
@@ -310,3 +310,8 @@ module.exports = {
     },
   },
 };
+
+const byId = spec.paths['/tasks/{id}'];
+byId.patch = { ...byId.put, summary: 'Same as PUT: change only the fields sent' };
+
+module.exports = spec;

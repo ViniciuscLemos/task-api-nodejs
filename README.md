@@ -56,7 +56,7 @@ Tasks (all of them need the `Authorization: Bearer <token>` header):
 - `GET /api/tasks/summary` shows how many are done and how many are pending
 - `GET /api/tasks/:id`
 - `POST /api/tasks`
-- `PUT /api/tasks/:id` (you can send only the field you want to change)
+- `PUT /api/tasks/:id` (you can send only the field you want to change; `PATCH` does the same)
 - `DELETE /api/tasks/:id`
 - `DELETE /api/tasks/completed` clears the ones already done and says how many went away
 

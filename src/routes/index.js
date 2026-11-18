@@ -20,6 +20,8 @@ router.delete('/tasks/completed', authenticate, tasksController.clearCompleted);
 router.get('/tasks/:id', authenticate, validateId, tasksController.getById);
 router.post('/tasks', authenticate, tasksController.create);
 router.put('/tasks/:id', authenticate, validateId, tasksController.update);
+// PUT here already changes only the fields sent, which is what most clients expect from PATCH
+router.patch('/tasks/:id', authenticate, validateId, tasksController.update);
 router.post('/tasks/:id/toggle', authenticate, validateId, tasksController.toggle);
 router.delete('/tasks/:id', authenticate, validateId, tasksController.remove);
 

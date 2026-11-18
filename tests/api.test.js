@@ -33,6 +33,7 @@ function withToken(token) {
     get: (url) => request(app).get(url).set('Authorization', `Bearer ${token}`),
     post: (url, body) => request(app).post(url).set('Authorization', `Bearer ${token}`).send(body),
     put: (url, body) => request(app).put(url).set('Authorization', `Bearer ${token}`).send(body),
+    patch: (url, body) => request(app).patch(url).set('Authorization', `Bearer ${token}`).send(body),
     delete: (url) => request(app).delete(url).set('Authorization', `Bearer ${token}`),
   };
 }
@@ -154,6 +155,11 @@ describe('tasks', () => {
     assert.equal(updated.body.completed, true);
     assert.equal(updated.body.title, 'Study Node');
     assert.equal(updated.body.priority, 'high');
+
+    const patched = await api.patch(`/api/tasks/${id}`, { priority: 'low' });
+    assert.equal(patched.status, 200);
+    assert.equal(patched.body.priority, 'low');
+    assert.equal(patched.body.completed, true);
 
     await api.put(`/api/tasks/${id}`, { description: 'temporary' });
     const noDescription = await api.put(`/api/tasks/${id}`, { description: null });
