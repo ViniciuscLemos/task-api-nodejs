@@ -215,6 +215,10 @@ describe('tasks', () => {
 
     const search = await api.get('/api/tasks?search=sql');
     assert.deepEqual(search.body.tasks.map((t) => t.title), ['High']);
+    const padded = await api.get(`/api/tasks?search=${encodeURIComponent('  sql ')}`);
+    assert.deepEqual(padded.body.tasks.map((t) => t.title), ['High']);
+    assert.equal((await api.get(`/api/tasks?search=${encodeURIComponent('   ')}`)).body.total, 3);
+    assert.equal((await api.get(`/api/tasks?search=${'x'.repeat(101)}`)).status, 400);
 
     const filtered = await api.get('/api/tasks?priority=low');
     assert.equal(filtered.body.total, 1);

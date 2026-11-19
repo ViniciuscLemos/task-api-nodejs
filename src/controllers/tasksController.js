@@ -47,7 +47,8 @@ function validateTask(body, partial) {
 
 // GET /tasks?completed=false&priority=high&search=study&sort=priority&page=1&limit=20
 async function list(req, res) {
-  const { completed, priority, sort, search } = req.query;
+  const { completed, priority, sort } = req.query;
+  let { search } = req.query;
 
   if (completed !== undefined && !['true', 'false'].includes(completed)) {
     return res.status(400).json({ error: 'completed filter must be true or false' });
@@ -58,6 +59,12 @@ async function list(req, res) {
   // ?search=a&search=b becomes an array in Express
   if (search !== undefined && typeof search !== 'string') {
     return res.status(400).json({ error: 'search must be a single text' });
+  }
+  // "  sql " from a search box: the spaces around used to be part of the ILIKE, so it only
+  // found titles with a space before and after, and "   " matched any title with three spaces
+  search = search?.trim();
+  if (search && search.length > 100) {
+    return res.status(400).json({ error: 'search must have at most 100 characters' });
   }
   if (sort !== undefined && !SORTS[sort]) {
     return res.status(400).json({ error: `sort must be: ${Object.keys(SORTS).join(', ')}` });
