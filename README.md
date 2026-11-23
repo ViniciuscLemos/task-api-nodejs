@@ -53,7 +53,7 @@ Login:
 
 Tasks (all of them need the `Authorization: Bearer <token>` header):
 - `GET /api/tasks` lists the tasks
-- `GET /api/tasks/summary` shows how many are done and how many are pending
+- `GET /api/tasks/summary` shows how many are done and how many are pending, and the pending task that has waited the longest
 - `GET /api/tasks/:id`
 - `POST /api/tasks`
 - `PUT /api/tasks/:id` (you can send only the field you want to change; `PATCH` does the same)

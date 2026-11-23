@@ -234,6 +234,16 @@ const spec = {
                 },
               },
               done_percent: { type: 'integer', example: 42 },
+              oldest_pending: {
+                type: 'object',
+                nullable: true,
+                description: 'The pending task created the longest ago',
+                properties: {
+                  id: { type: 'integer', example: 3 },
+                  title: { type: 'string', example: 'Renew the passport' },
+                  created_at: { type: 'string', format: 'date-time' },
+                },
+              },
             },
           }),
           401: unauthorized,

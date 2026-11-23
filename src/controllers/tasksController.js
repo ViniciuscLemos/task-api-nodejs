@@ -146,6 +146,15 @@ async function summary(req, res) {
     data.pending_by_priority = { high: row.pending_high, medium: pending_medium, low: pending_low };
     // whole number, 0 when there's nothing yet
     data.done_percent = row.total ? Math.round((row.completed / row.total) * 100) : 0;
+
+    // the one that has waited the longest, which is usually the one being put off
+    const oldest = await pool.query(
+      `SELECT id, title, created_at FROM tasks
+       WHERE user_id = $1 AND NOT completed
+       ORDER BY created_at, id LIMIT 1`,
+      [req.user.id]
+    );
+    data.oldest_pending = oldest.rows[0] ?? null;
     return res.json(data);
   } catch (err) {
     console.error('Error building summary:', err);

@@ -267,7 +267,8 @@ describe('tasks', () => {
 
     const res = await api.get('/api/tasks/summary');
     assert.equal(res.status, 200);
-    assert.deepEqual(res.body, {
+    const { oldest_pending: oldest, ...counts } = res.body;
+    assert.deepEqual(counts, {
       total: 3,
       completed: 1,
       pending: 2,
@@ -275,6 +276,8 @@ describe('tasks', () => {
       pending_by_priority: { high: 1, medium: 1, low: 0 },
       done_percent: 33,
     });
+    // A is done, so B is the one waiting the longest
+    assert.equal(oldest.title, 'B');
   });
 
   it('summary with no tasks is all zero', async () => {
@@ -282,6 +285,7 @@ describe('tasks', () => {
     const res = await api.get('/api/tasks/summary');
     assert.equal(res.body.done_percent, 0);
     assert.deepEqual(res.body.pending_by_priority, { high: 0, medium: 0, low: 0 });
+    assert.equal(res.body.oldest_pending, null);
   });
 
   it('toggle flips completed back and forth', async () => {
